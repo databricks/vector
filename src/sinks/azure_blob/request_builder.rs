@@ -82,12 +82,12 @@ impl RequestBuilder<(String, Vec<Event>)> for AzureBlobRequestOptions {
 
         let blob_data = payload.into_payload();
 
-        debug!(
+        info!(
             message = "Sending events.",
             bytes = ?blob_data.len(),
             events_len = ?azure_metadata.count,
             blob = ?azure_metadata.partition_key,
-            container = ?self.container_name,
+            location = ?self.container_name,
         );
 
         AzureBlobRequest {
