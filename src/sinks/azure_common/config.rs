@@ -194,3 +194,31 @@ pub fn build_client(
     }
     Ok(std::sync::Arc::new(client))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // use azure_core::error::ErrorKind;
+    use azure_core::StatusCode;
+    // use azure_core::error::Error;
+    use azure_core::error::HttpError;
+    use azure_core::headers::Headers;
+    use azure_core::BytesStream;
+    use azure_core::Response;
+
+    #[tokio::test]
+    async fn test_retriable() {
+        // Create dummy response
+        // For now, specify only status code for testing
+        // BadRequest (400) should retry
+        let response = Response::new(
+            StatusCode::BadRequest,
+            Headers::new(),
+            Box::pin(BytesStream::new("test"))
+        );
+        let error = HttpError::new(response).await;
+        assert!(
+            AzureBlobRetryLogic.is_retriable_error(&error)
+        );
+    }
+}
