@@ -123,6 +123,7 @@ fn main() {
         println!("cargo:rerun-if-changed=proto/google/pubsub/v1/pubsub.proto");
         println!("cargo:rerun-if-changed=proto/google/rpc/status.proto");
         println!("cargo:rerun-if-changed=proto/vector.proto");
+        println!("cargo:rerun-if-changed=proto/vector_event_log.proto");
 
         // Create and store the "file descriptor set" from the compiled Protocol Buffers packages.
         //
@@ -151,6 +152,7 @@ fn main() {
                     "proto/google/pubsub/v1/pubsub.proto",
                     "proto/google/rpc/status.proto",
                     "proto/vector.proto",
+                    "proto/vector_event_log.proto",
                 ],
                 &["proto/", "lib/vector-core/proto/"],
             )

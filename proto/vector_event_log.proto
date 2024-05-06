@@ -1,0 +1,61 @@
+syntax = "proto3";
+package vector;
+
+// Indicates the sub-event category that this event falls into.
+enum EventType {
+  VECTOR_SERVICE_EVENT = 1;
+  VECTOR_SENT_MESSAGES_EVENT = 2;
+}
+
+// All-encompassing metadata field; to be extended with event metadata fields that are added later (e.g. log-daemon pod_id?).
+message VectorEventMetadata {
+  optional string region = 1;
+  optional string shard_name = 2;
+  // Vector’s instance ID.
+  optional string instance_id = 3;
+  optional string vm_id = 4;
+  optional Plane plane = 5;
+  optional ClusterType cluster_type = 6;
+  
+  // Additional fields are provided as part of Lumberjack’s _environment field: cloud_type, deployment_mode, etl_region.
+}
+
+// Sub-event-type enum for Vector service events.
+enum VectorServiceEventType {
+  VECTOR_PROCESS_START = 1;
+  VECTOR_PROCESS_SOURCE_CREATED = 2;
+  VECTOR_PROCESS_SINK_CREATED = 3;
+  VECTOR_PROCESS_TERMINATION_SIGNAL_RECEIVED = 4;
+  VECTOR_PROCESS_COMPONENETS_CLOSED = 5;
+}
+
+// Event message for general Vector process events, e.g. startup, shutdown, interrupts, errors, etc.
+message VectorServiceEvent {
+  optional VectorServiceEventType service_event = 1;
+}
+
+// Event message indicating that Vector sent messages to cloud storage by way of a CloudBlobStorageSink. Includes details of the upload.
+message VectorSentMessagesEvent {
+  optional string destination_path = 1;
+  optional string topic = 2;
+  optional int64 num_events = 3;
+  optional int64 num_bytes = 4;
+}
+
+// Base Vector-event-log message, to be emitted by the internal_events source.
+message VectorEventLog {
+  optional google.protobuf.Timestamp event_timestamp = 1;
+  optional EventType vector_event_type = 2;
+  // Sub-event; schema will differ by event type.
+  oneof event {
+    VectorServiceEvent service_event = 3;
+    VectorSentMessagesEvent sent_event = 4;
+  }
+  
+  // Descriptive top-level message field, akin to a log line. Can be left blank if the event is self-evident.
+  optional string message = 5;
+  
+  optional VectorEventMetadata metadata = 6;
+  
+  // Additional fields are provided as part of Lumberjack’s _log_metadata field: log_timestamp_ms, branch_name, shard_name.
+}
