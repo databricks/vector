@@ -1,6 +1,8 @@
 [package]
 name = "vector"
-version = "0.36.1"
+# Setting Databricks versioning
+# Can gradually increment this every once in a while to help track changes present in image
+version = "0.36.1-databricks-v1"
 authors = ["Vector Contributors <vector@datadoghq.com>"]
 edition = "2021"
 description = "A lightweight and ultra-fast tool for building observability pipelines"
