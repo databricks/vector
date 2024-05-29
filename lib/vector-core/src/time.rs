@@ -21,6 +21,11 @@ pub trait KeyedTimer<K> {
     /// If the given key already exists in the timer, the underlying subtimer is reset.
     fn insert(&mut self, item_key: K);
 
+    /// Insert a new subtimer, keyed by `K` and with a maximum delay.
+    /// expiration delay would be the minimum of the configured delay and supplied max_delay.
+    /// If the given key already exists in the timer, the underlying subtimer is reset.
+    fn insert_with_max_delay(&mut self, item_key: K, max_delay: std::time::Duration);
+
     /// Removes a subtimer from the list.
     fn remove(&mut self, item_key: &K);
 
