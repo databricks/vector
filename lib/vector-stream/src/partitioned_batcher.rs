@@ -7,6 +7,7 @@ use std::{
     time::Duration,
 };
 
+use chrono::Local;
 use futures::stream::{Fuse, Stream, StreamExt};
 use pin_project::pin_project;
 use tokio_util::time::{delay_queue::Key, DelayQueue};
@@ -67,14 +68,19 @@ where
     }
 
     fn insert(&mut self, item_key: K) {
+        self.insert_with_max_delay(item_key, self.timeout)
+    }
+
+    fn insert_with_max_delay(&mut self, item_key: K, max_delay: Duration) {
+        info!(message = "max_delay and timeout", max_delay = ?max_delay, timeout = ?self.timeout);
         if let Some(expiration_key) = self.expiration_map.get(&item_key) {
             // We already have an expiration entry for this item key, so
             // just reset the expiration.
-            self.expirations.reset(expiration_key, self.timeout);
+            self.expirations.reset(expiration_key, std::cmp::min(max_delay, self.timeout));
         } else {
             // This is a yet-unseen item key, so create a new expiration
             // entry.
-            let expiration_key = self.expirations.insert(item_key.clone(), self.timeout);
+            let expiration_key = self.expirations.insert(item_key.clone(), std::cmp::min(max_delay, self.timeout));
             assert!(self
                 .expiration_map
                 .insert(item_key, expiration_key)
@@ -203,6 +209,15 @@ where
     stream: Fuse<St>,
 }
 
+fn duration_till_midnight() -> Duration {
+    let now = Local::now();
+    let time_to_midnight_opt = now.date_naive().succ_opt()
+        .map(|d| d.and_hms_opt(0, 0, 10))
+        .flatten()
+        .map(|d| d.signed_duration_since(now.naive_local()));
+
+    time_to_midnight_opt.map_or_else(|| Duration::from_secs(24 * 60 * 60), |d| d.to_std().unwrap_or_else(|_| Duration::from_secs(24 * 60 * 60)))
+}
 impl<St, Prt, C, F, B> PartitionedBatcher<St, Prt, ExpirationQueue<Prt::Key>, C, F, B>
 where
     St: Stream<Item = Prt::Item>,
@@ -308,7 +323,7 @@ where
                     } else {
                         let batch = (this.state)();
                         this.batches.insert(item_key.clone(), batch);
-                        this.timer.insert(item_key.clone());
+                        this.timer.insert_with_max_delay(item_key.clone(), duration_till_midnight());
                         this.batches
                             .get_mut(&item_key)
                             .expect("batch has just been inserted so should exist")
@@ -325,7 +340,7 @@ where
                         // The batch for this partition key was set to
                         // expire, but now it's overflowed and must be
                         // pushed out, so now we reset the batch timeout.
-                        this.timer.insert(item_key.clone());
+                        this.timer.insert_with_max_delay(item_key.clone(), duration_till_midnight());
                     }
 
                     // Insert the item into the batch.
@@ -394,6 +409,10 @@ mod test {
 
         fn insert(&mut self, item_key: u8) {
             self.valid_keys.insert(item_key);
+        }
+
+        fn insert_with_max_delay(&mut self, item_key: u8, max_delay: Duration) {
+            self.insert(item_key);
         }
 
         fn remove(&mut self, item_key: &u8) {
