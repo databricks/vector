@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     result::Result as StdResult,
     sync::Arc,
     task::{Context, Poll},
@@ -57,6 +58,7 @@ impl Service<AzureBlobRequest> for AzureBlobService {
                 events_len: request.metadata.count,
                 blob: request.metadata.partition_key.clone(),
                 container: request.metadata.container_name.clone(),
+                count_map: HashMap::new(),
             };
 
             let result = blob

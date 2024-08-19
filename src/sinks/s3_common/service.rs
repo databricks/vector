@@ -1,5 +1,7 @@
 use std::task::{Context, Poll};
 
+use std::collections::HashMap;
+
 use aws_sdk_s3::operation::put_object::PutObjectError;
 use aws_sdk_s3::Client as S3Client;
 use aws_smithy_runtime_api::client::orchestrator::HttpResponse;
@@ -52,6 +54,7 @@ pub struct S3Metadata {
     pub s3_key: String,
     pub count: usize,
     pub finalizers: EventFinalizers,
+    pub count_map: HashMap<String, usize>,
 }
 
 #[derive(Debug)]
@@ -133,6 +136,7 @@ impl Service<S3Request> for S3Service {
             events_len: request.metadata.count,
             blob: request.metadata.s3_key.clone(),
             container: request.bucket.clone(),
+            count_map: HashMap::new(),
         };
 
         let client = self.client.clone();
