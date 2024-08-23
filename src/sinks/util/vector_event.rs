@@ -18,6 +18,7 @@ pub struct VectorSendEventMetadata {
 }
 
 pub static COUNT_MAP_KEYS: OnceCell<Vec<String>> = OnceCell::new();
+pub static TIME_PARITY_KEY: &str = "timeParity";
 
 pub fn get_count_map_keys() -> &'static Vec<String> {
     // Initialize the static variable once, or return the value if it's already initialized/computed
@@ -52,26 +53,36 @@ impl VectorSendEventMetadata {
             // VECTOR_SENDING_MESSAGES_EVENT
             vector_event_type = 3
         );
-        info!(
-            message = "Test granularity change.",
-            map = serde_json::to_string(&self.count_map).unwrap(),
-            vector_event_type = 1,
-        )
+        for (key, value) in &self.count_map {
+            info!(
+                message = "Sending event breakdown.",
+                key = key,
+                count = value,
+                blob = self.blob,
+                container = self.container,
+                vector_event_type = 1,
+            );
+        }
     }
 }
 
 // Build key for count map like "key1,key2" as POC
 pub fn build_key(event: &LogEvent) -> String {
     let mut key_vals: Vec<String> = Vec::new();
+    if let Ok(value) = event.parse_path_and_get_value(TIME_PARITY_KEY) {
+        if let Some(val) = value {
+            key_vals.push(format!("{}={}", TIME_PARITY_KEY, val.to_string()));
+        }
+    }
     for key_part in get_count_map_keys() {
         if let Ok(value) = event.parse_path_and_get_value(&key_part) {
             if let Some(val) = value {
                // Remove extra quotes from string
-               key_vals.push(val.to_string().replace("\"", ""));
+               key_vals.push(format!("{}={}", key_part, val.to_string().replace("\"", "")));
             }
         }
     }
-    key_vals.join(",")
+    key_vals.join("/")
 }
 
 pub fn generate_count_map(events: &Vec<Event>) -> HashMap<String, usize> {
