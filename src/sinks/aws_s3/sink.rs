@@ -18,7 +18,7 @@ use crate::{
         },
         util::{
             metadata::RequestMetadataBuilder, request_builder::EncodeResult, Compression,
-            RequestBuilder, vector_event::VectorSendEventMetadata,
+            RequestBuilder, vector_event::VectorSendEventMetadata, vector_event::generate_count_map
         },
     },
 };
@@ -66,6 +66,7 @@ impl RequestBuilder<(S3PartitionKey, Vec<Event>)> for S3RequestOptions {
             s3_key: s3_key_prefix,
             count: events.len(),
             finalizers,
+            count_map: generate_count_map(&events),
         };
 
         (metadata, builder, events)
@@ -111,6 +112,7 @@ impl RequestBuilder<(S3PartitionKey, Vec<Event>)> for S3RequestOptions {
             events_len: s3metadata.count,
             blob: s3metadata.s3_key.clone(),
             container: self.bucket.clone(),
+            count_map: s3metadata.count_map.clone(),
         }.emit_sending_event();
 
         S3Request {

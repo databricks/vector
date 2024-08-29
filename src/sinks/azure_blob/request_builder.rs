@@ -5,6 +5,8 @@ use vector_lib::codecs::encoding::Framer;
 use vector_lib::request_metadata::RequestMetadata;
 use vector_lib::EstimatedJsonEncodedSizeOf;
 
+use std::collections::HashMap;
+
 use crate::{
     codecs::{Encoder, Transformer},
     event::{Event, Finalizable},
@@ -88,6 +90,7 @@ impl RequestBuilder<(String, Vec<Event>)> for AzureBlobRequestOptions {
             events_len: azure_metadata.count,
             blob: azure_metadata.partition_key.clone(),
             container: self.container_name.clone(),
+            count_map: HashMap::new(),
         }.emit_sending_event();
 
         AzureBlobRequest {
