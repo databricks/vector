@@ -377,10 +377,7 @@ impl RequestSettings {
             .acl
             .map(|acl| HeaderValue::from_str(&to_string(acl)).unwrap());
         let content_type = HeaderValue::from_str(encoder.content_type()).unwrap();
-        let content_encoding = config
-            .compression
-            .content_encoding()
-            .map(|ce| HeaderValue::from_str(&to_string(ce)).unwrap());
+        let content_encoding = None;
         let storage_class = config.storage_class.unwrap_or_default();
         let storage_class = HeaderValue::from_str(&to_string(storage_class)).unwrap();
         let metadata = config
