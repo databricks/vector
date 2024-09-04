@@ -151,6 +151,11 @@ pub struct GcsSinkConfig {
     #[serde(default)]
     compression: Compression,
 
+    /// Whether or not to set the applied content encoding for the object
+    #[serde(default = "crate::serde::default_true")]
+    #[configurable(metadata(docs::advanced))]
+    set_content_encoding: bool,
+
     #[configurable(derived)]
     #[serde(default)]
     batch: BatchConfig<BulkSizeBasedDefaultBatchSettings>,
@@ -377,10 +382,14 @@ impl RequestSettings {
             .acl
             .map(|acl| HeaderValue::from_str(&to_string(acl)).unwrap());
         let content_type = HeaderValue::from_str(encoder.content_type()).unwrap();
-        let content_encoding = config
-            .compression
-            .content_encoding()
-            .map(|ce| HeaderValue::from_str(&to_string(ce)).unwrap());
+        let content_encoding = if config.set_content_encoding {
+            config
+                .compression
+                .content_encoding()
+                .map(|ce| HeaderValue::from_str(&to_string(ce)).unwrap())
+        } else {
+            None
+        };
         let storage_class = config.storage_class.unwrap_or_default();
         let storage_class = HeaderValue::from_str(&to_string(storage_class)).unwrap();
         let metadata = config
