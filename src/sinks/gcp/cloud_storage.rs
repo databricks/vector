@@ -147,6 +147,11 @@ pub struct GcsSinkConfig {
     #[serde(flatten)]
     encoding: EncodingConfigWithFraming,
 
+    /// Whether to set content encoding for the object
+    #[serde(default = "crate::serde::default_true")]
+    #[configurable(metadata(docs::advanced))]
+    set_content_encoding: bool,
+
     #[configurable(derived)]
     #[serde(default)]
     compression: Compression,
