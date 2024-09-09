@@ -147,6 +147,17 @@ pub struct GcsSinkConfig {
     #[serde(flatten)]
     encoding: EncodingConfigWithFraming,
 
+    /// Whether to set content encoding for the object
+    ///
+    /// The default mode is true, in which the content coding will be determined by the compression
+    /// scheme and applied to the object.
+    ///
+    /// Not setting content encoding could be useful when sending objects to systems that do not
+    /// work well with "content-encoding" headers (e.g Hadoop filesystems as illustrated in this
+    /// issue: https://github.com/GoogleCloudDataproc/hadoop-connectors/issues/66)
+    #[configurable(metadata(docs::advanced))]
+    content_encoding: Option<String>,
+
     #[configurable(derived)]
     #[serde(default)]
     compression: Compression,
@@ -194,6 +205,7 @@ fn default_config(encoding: EncodingConfigWithFraming) -> GcsSinkConfig {
         filename_append_uuid: true,
         filename_extension: Default::default(),
         encoding,
+        content_encoding: None,
         compression: Compression::gzip_default(),
         batch: Default::default(),
         request: Default::default(),
@@ -378,9 +390,12 @@ impl RequestSettings {
             .map(|acl| HeaderValue::from_str(&to_string(acl)).unwrap());
         let content_type = HeaderValue::from_str(encoder.content_type()).unwrap();
         let content_encoding = config
-            .compression
-            .content_encoding()
-            .map(|ce| HeaderValue::from_str(&to_string(ce)).unwrap());
+            .content_encoding
+            .as_ref()
+            .map(String::as_str)
+            .or(config.compression.content_encoding());
+        let content_encoding =
+            content_encoding.map(|ce| HeaderValue::from_str(&to_string(ce)).unwrap());
         let storage_class = config.storage_class.unwrap_or_default();
         let storage_class = HeaderValue::from_str(&to_string(storage_class)).unwrap();
         let metadata = config
@@ -502,13 +517,19 @@ mod tests {
         RequestSettings::new(sink_config, context).expect("Could not create request settings")
     }
 
-    fn build_request(extension: Option<&str>, uuid: bool, compression: Compression) -> GcsRequest {
+    fn build_request(
+        extension: Option<&str>,
+        uuid: bool,
+        compression: Compression,
+        content_encoding: Option<String>,
+    ) -> GcsRequest {
         let context = SinkContext::default();
         let sink_config = GcsSinkConfig {
             key_prefix: Some("key/".into()),
             filename_time_format: "date".into(),
             filename_extension: extension.map(Into::into),
             filename_append_uuid: uuid,
+            content_encoding: content_encoding,
             compression,
             ..default_config(
                 (
@@ -539,16 +560,31 @@ mod tests {
 
     #[test]
     fn gcs_build_request() {
-        let req = build_request(Some("ext"), false, Compression::None);
+        let req = build_request(Some("ext"), false, Compression::None, None);
         assert_eq!(req.key, "key/date.ext".to_string());
 
-        let req = build_request(None, false, Compression::None);
+        let req = build_request(None, false, Compression::None, None);
         assert_eq!(req.key, "key/date.log".to_string());
 
-        let req = build_request(None, false, Compression::gzip_default());
+        let req = build_request(None, false, Compression::gzip_default(), None);
         assert_eq!(req.key, "key/date.log.gz".to_string());
 
-        let req = build_request(None, true, Compression::gzip_default());
+        let req = build_request(None, true, Compression::gzip_default(), None);
         assert_ne!(req.key, "key/date.log.gz".to_string());
+        assert_eq!(
+            req.settings.content_encoding,
+            HeaderValue::from_str("gzip").ok()
+        );
+
+        let req = build_request(
+            None,
+            false,
+            Compression::gzip_default(),
+            Some("foo".to_string()),
+        );
+        assert_eq!(
+            req.settings.content_encoding,
+            HeaderValue::from_str("foo").ok()
+        );
     }
 }
