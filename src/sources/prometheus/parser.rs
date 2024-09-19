@@ -5,6 +5,38 @@ use chrono::{DateTime, TimeZone, Utc};
 use vector_lib::prometheus::parser::proto;
 use vector_lib::prometheus::parser::{GroupKind, MetricGroup, ParserError};
 
+use metrics::{register_counter, Counter};
+use once_cell::sync::Lazy;
+
+// Define and initialize counters using Lazy
+static METRIC_COUNTER_COUNTER: Lazy<Counter> = Lazy::new(|| {
+    register_counter!(
+        "metric_type_count_total",
+        "metric_type" => "counter"
+    )
+});
+
+static METRIC_GAUGE_COUNTER: Lazy<Counter> = Lazy::new(|| {
+    register_counter!(
+        "metric_type_count_total",
+        "metric_type" => "gauge"
+    )
+});
+
+static METRIC_HISTOGRAM_COUNTER: Lazy<Counter> = Lazy::new(|| {
+    register_counter!(
+        "metric_type_count_total",
+        "metric_type" => "histogram"
+    )
+});
+
+static METRIC_SUMMARY_COUNTER: Lazy<Counter> = Lazy::new(|| {
+    register_counter!(
+        "metric_type_count_total",
+        "metric_type" => "summary"
+    )
+});
+
 use crate::event::{
     metric::{Bucket, Metric, MetricKind, MetricTags, MetricValue, Quantile},
     Event,
@@ -58,6 +90,7 @@ fn reparse_groups(
     for group in groups {
         match group.metrics {
             GroupKind::Counter(metrics) => {
+                METRIC_COUNTER_COUNTER.increment(1); // Increment the counter for Counter type
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
 
@@ -75,6 +108,7 @@ fn reparse_groups(
                 }
             }
             GroupKind::Gauge(metrics) | GroupKind::Untyped(metrics) => {
+                METRIC_GAUGE_COUNTER.increment(1); // Increment the counter for Gauge type
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
 
@@ -93,6 +127,7 @@ fn reparse_groups(
                 }
             }
             GroupKind::Histogram(metrics) => {
+                METRIC_HISTOGRAM_COUNTER.increment(1); // Increment the counter for Histogram type
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
 
@@ -131,6 +166,7 @@ fn reparse_groups(
                 }
             }
             GroupKind::Summary(metrics) => {
+                METRIC_SUMMARY_COUNTER.increment(1); // Increment the counter for Summary type
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
 
