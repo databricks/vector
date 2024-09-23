@@ -7,6 +7,7 @@ use vector_lib::prometheus::parser::{GroupKind, MetricGroup, ParserError};
 
 use metrics::{register_counter, Counter};
 use once_cell::sync::Lazy;
+use tracing::warn;
 
 // Define and initialize counters using Lazy
 static METRIC_COUNTER_COUNTER: Lazy<Counter> = Lazy::new(|| {
@@ -90,7 +91,6 @@ fn reparse_groups(
     for group in groups {
         match group.metrics {
             GroupKind::Counter(metrics) => {
-                METRIC_COUNTER_COUNTER.increment(1); // Increment the counter for Counter type
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
 
@@ -104,11 +104,15 @@ fn reparse_groups(
                     .with_timestamp(Some(utc_timestamp(key.timestamp, start)))
                     .with_tags(tags.as_option());
 
+                    warn!(
+                        "Metric '{}' is a counter",
+                        group.name.clone(),
+                    );
+                    METRIC_COUNTER_COUNTER.increment(1); // Increment the counter for Counter type
                     result.push(counter.into());
                 }
             }
             GroupKind::Gauge(metrics) | GroupKind::Untyped(metrics) => {
-                METRIC_GAUGE_COUNTER.increment(1); // Increment the counter for Gauge type
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
 
@@ -122,12 +126,11 @@ fn reparse_groups(
                     )
                     .with_timestamp(Some(utc_timestamp(key.timestamp, start)))
                     .with_tags(tags.as_option());
-
+                    METRIC_GAUGE_COUNTER.increment(1); // Increment the counter for Gauge type
                     result.push(gauge.into());
                 }
             }
             GroupKind::Histogram(metrics) => {
-                METRIC_HISTOGRAM_COUNTER.increment(1); // Increment the counter for Histogram type
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
 
@@ -142,7 +145,13 @@ fn reparse_groups(
                     if drop_last {
                         buckets.pop();
                     }
-
+                    // Log a warning instead of throwing an exception
+                    // since metric type is not a critical error in the ELK
+                    warn!(
+                        "Metric '{}' is a histogram",
+                        group.name.clone(),
+                    );
+                    METRIC_HISTOGRAM_COUNTER.increment(1); // Increment the counter for Histogram type
                     result.push(
                         Metric::new(
                             group.name.clone(),
@@ -166,10 +175,9 @@ fn reparse_groups(
                 }
             }
             GroupKind::Summary(metrics) => {
-                METRIC_SUMMARY_COUNTER.increment(1); // Increment the counter for Summary type
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
-
+                    METRIC_SUMMARY_COUNTER.increment(1); // Increment the counter for Summary type
                     result.push(
                         Metric::new(
                             group.name.clone(),
