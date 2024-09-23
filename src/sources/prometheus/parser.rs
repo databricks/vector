@@ -5,6 +5,39 @@ use chrono::{DateTime, TimeZone, Utc};
 use vector_lib::prometheus::parser::proto;
 use vector_lib::prometheus::parser::{GroupKind, MetricGroup, ParserError};
 
+use metrics::{register_counter, Counter};
+use once_cell::sync::Lazy;
+use tracing::warn;
+
+// Define and initialize counters using Lazy
+static METRIC_COUNTER_COUNTER: Lazy<Counter> = Lazy::new(|| {
+    register_counter!(
+        "metric_type_count_total",
+        "metric_type" => "counter"
+    )
+});
+
+static METRIC_GAUGE_COUNTER: Lazy<Counter> = Lazy::new(|| {
+    register_counter!(
+        "metric_type_count_total",
+        "metric_type" => "gauge"
+    )
+});
+
+static METRIC_HISTOGRAM_COUNTER: Lazy<Counter> = Lazy::new(|| {
+    register_counter!(
+        "metric_type_count_total",
+        "metric_type" => "histogram"
+    )
+});
+
+static METRIC_SUMMARY_COUNTER: Lazy<Counter> = Lazy::new(|| {
+    register_counter!(
+        "metric_type_count_total",
+        "metric_type" => "summary"
+    )
+});
+
 use crate::event::{
     metric::{Bucket, Metric, MetricKind, MetricTags, MetricValue, Quantile},
     Event,
@@ -71,6 +104,11 @@ fn reparse_groups(
                     .with_timestamp(Some(utc_timestamp(key.timestamp, start)))
                     .with_tags(tags.as_option());
 
+                    warn!(
+                        "Metric '{}' is a counter",
+                        group.name.clone(),
+                    );
+                    METRIC_COUNTER_COUNTER.increment(1); // Increment the counter for Counter type
                     result.push(counter.into());
                 }
             }
@@ -88,7 +126,7 @@ fn reparse_groups(
                     )
                     .with_timestamp(Some(utc_timestamp(key.timestamp, start)))
                     .with_tags(tags.as_option());
-
+                    METRIC_GAUGE_COUNTER.increment(1); // Increment the counter for Gauge type
                     result.push(gauge.into());
                 }
             }
@@ -107,7 +145,13 @@ fn reparse_groups(
                     if drop_last {
                         buckets.pop();
                     }
-
+                    // Log a warning instead of throwing an exception
+                    // since metric type is not a critical error in the ELK
+                    warn!(
+                        "Metric '{}' is a histogram",
+                        group.name.clone(),
+                    );
+                    METRIC_HISTOGRAM_COUNTER.increment(1); // Increment the counter for Histogram type
                     result.push(
                         Metric::new(
                             group.name.clone(),
@@ -133,7 +177,7 @@ fn reparse_groups(
             GroupKind::Summary(metrics) => {
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
-
+                    METRIC_SUMMARY_COUNTER.increment(1); // Increment the counter for Summary type
                     result.push(
                         Metric::new(
                             group.name.clone(),
