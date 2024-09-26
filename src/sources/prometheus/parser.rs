@@ -196,7 +196,7 @@ fn combine_tags(
 
 fn record_metrics(latency_seconds: f64, shard_name: String, metric_type: String) {
     counter!("metric_type_count_total", 1, "metric_type" => metric_type);
-    histogram!("metric_latency_seconds", latency_seconds, "sourceShardName" => shard_name);
+    histogram!("metric_latency_seconds", latency_seconds, "source_shard_name" => shard_name);
 }
 
 #[cfg(test)]
