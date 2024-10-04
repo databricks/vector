@@ -343,16 +343,17 @@ impl TlsSettings {
         Ok(())
     }
 
-    pub fn apply_connect_configuration(&self, connection: &mut ConnectConfiguration) {
+    pub fn apply_connect_configuration(
+        &self,
+        connection: &mut ConnectConfiguration,
+    ) -> std::result::Result<(), openssl::error::ErrorStack> {
         connection.set_verify_hostname(self.verify_hostname);
         if let Some(server_name) = &self.server_name {
             // Prevent native TLS lib from inferring default SNI using domain name from url.
             connection.set_use_server_name_indication(false);
-            match connection.set_hostname(server_name) {
-                Ok(_) => (),
-                Err(e) => error!("Failed to set server name indication: {}", e),
-            }
+            connection.set_hostname(server_name)?;
         }
+        Ok(())
     }
 }
 

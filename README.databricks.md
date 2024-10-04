@@ -10,4 +10,4 @@ This lists custom changes merged in Databricks fork of Vector.
 9. Provide an option to override the Content-Encoding header for files uploaded by Google Cloud Storage sink https://github.com/databricks/vector/pull/30
 10. Add functionality to derive topic from file upload path https://github.com/databricks/vector/pull/33
 11. Update event logs to support emitting granular upload events https://github.com/databricks/vector/pull/35
-12. Add support for SNI. A PR for upstream is also been created. https://github.com/databricks/vector/pull/39 upstream PR: https://github.com/vectordotdev/vector/pull/21365
+12. Add support for SNI. A PR for upstream is also been created. https://github.com/databricks/vector/pull/39 https://github.com/databricks/vector/pull/40 upstream PR: https://github.com/vectordotdev/vector/pull/21365
