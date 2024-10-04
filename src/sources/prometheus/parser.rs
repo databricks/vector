@@ -5,6 +5,8 @@ use chrono::{DateTime, TimeZone, Utc};
 use vector_lib::prometheus::parser::proto;
 use vector_lib::prometheus::parser::{GroupKind, MetricGroup, ParserError};
 
+use metrics::{counter, histogram};
+
 use crate::event::{
     metric::{Bucket, Metric, MetricKind, MetricTags, MetricValue, Quantile},
     Event,
@@ -61,6 +63,10 @@ fn reparse_groups(
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
 
+                    let shard_name = tags.get("shardName").unwrap_or("unknown").to_string();
+                    let latency_seconds = (start - utc_timestamp(key.timestamp, start)).num_milliseconds() as f64 / 1000.0;
+                    record_metrics(latency_seconds, shard_name, "counter".to_string());
+
                     let counter = Metric::new(
                         group.name.clone(),
                         metric_kind,
@@ -77,6 +83,10 @@ fn reparse_groups(
             GroupKind::Gauge(metrics) | GroupKind::Untyped(metrics) => {
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
+
+                    let shard_name = tags.get("shardName").unwrap_or("unknown").to_string();
+                    let latency_seconds = (start - utc_timestamp(key.timestamp, start)).num_milliseconds() as f64 / 1000.0;
+                    record_metrics(latency_seconds, shard_name, "gauge".to_string());
 
                     let gauge = Metric::new(
                         group.name.clone(),
@@ -95,6 +105,10 @@ fn reparse_groups(
             GroupKind::Histogram(metrics) => {
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
+
+                    let shard_name = tags.get("shardName").unwrap_or("unknown").to_string();
+                    let latency_seconds = (start - utc_timestamp(key.timestamp, start)).num_milliseconds() as f64 / 1000.0;
+                    record_metrics(latency_seconds, shard_name, "histogram".to_string());
 
                     let mut buckets = metric.buckets;
                     buckets.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
@@ -133,6 +147,10 @@ fn reparse_groups(
             GroupKind::Summary(metrics) => {
                 for (key, metric) in metrics {
                     let tags = combine_tags(key.labels, tag_overrides.clone());
+
+                    let shard_name = tags.get("shardName").unwrap_or("unknown").to_string();
+                    let latency_seconds = (start - utc_timestamp(key.timestamp, start)).num_milliseconds() as f64 / 1000.0;
+                    record_metrics(latency_seconds, shard_name, "summary".to_string());
 
                     result.push(
                         Metric::new(
@@ -174,6 +192,11 @@ fn combine_tags(
     }
 
     tags
+}
+
+fn record_metrics(latency_seconds: f64, shard_name: String, metric_type: String) {
+    counter!("metric_type_count_total", 1, "metric_type" => metric_type);
+    histogram!("metric_latency_seconds", latency_seconds, "source_shard_name" => shard_name);
 }
 
 #[cfg(test)]
