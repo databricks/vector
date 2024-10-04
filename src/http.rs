@@ -14,7 +14,6 @@ use hyper_openssl::HttpsConnector;
 use hyper_proxy::ProxyConnector;
 use rand::Rng;
 use serde_with::serde_as;
-use snafu::Error;
 use snafu::{ResultExt, Snafu};
 use std::{
     fmt,
@@ -205,19 +204,10 @@ pub fn build_tls_connector(
     let settings = tls_settings.tls().cloned();
     https.set_callback(move |c, _uri| {
         if let Some(settings) = &settings {
-            match settings.apply_connect_configuration(c) {
-                Ok(()) => (),
-                Err(error) => {
-                    error
-                        .source()
-                        .unwrap()
-                        .downcast_ref::<openssl::error::ErrorStack>()
-                        .unwrap();
-                }
-            }
+            settings.apply_connect_configuration(c)
+        } else {
+            Ok(())
         }
-
-        Ok(())
     });
     Ok(https)
 }
