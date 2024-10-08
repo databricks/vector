@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use azure_core::{error::HttpError, RetryOptions};
-use azure_identity::{AutoRefreshingTokenCredential, DefaultAzureCredential};
+use azure_identity::create_credential;
 use azure_storage::{prelude::*, CloudLocation, ConnectionString};
 use azure_storage_blobs::{blob::operations::PutBlockBlobResponse, prelude::*};
 use bytes::Bytes;
@@ -163,6 +163,7 @@ pub fn build_client(
                 Some(uri) => ClientBuilder::with_location(
                     CloudLocation::Custom {
                         uri: uri.to_string(),
+                        account : connection_string.account_name.expect("Account name missing in connection string").to_string(),
                     },
                     connection_string.storage_credentials()?,
                 ),
@@ -180,15 +181,14 @@ pub fn build_client(
             .container_client(container_name);
         }
         (None, Some(storage_account_p)) => {
-            let creds = std::sync::Arc::new(DefaultAzureCredential::default());
-            let auto_creds = std::sync::Arc::new(AutoRefreshingTokenCredential::new(creds));
-            let storage_credentials = StorageCredentials::token_credential(auto_creds);
+            let creds = create_credential()?;
+            let storage_credentials = StorageCredentials::token_credential(creds);
 
             client = match endpoint {
                 // If a blob_endpoint is provided in the configuration, use it with a Custom
                 // CloudLocation, to allow overriding the blob storage API endpoint
                 Some(endpoint) => ClientBuilder::with_location(
-                    CloudLocation::Custom { uri: endpoint },
+                    CloudLocation::Custom { uri: endpoint, account: storage_account_p },
                     storage_credentials,
                 ),
                 // Use the storage_account configuration parameter and assume we are in Azure
