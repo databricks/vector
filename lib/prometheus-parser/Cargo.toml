@@ -19,3 +19,8 @@ vector-common = { path = "../vector-common", features = ["btreemap"] }
 
 [build-dependencies]
 prost-build = "0.12"
+
+[dependencies.tracing]
+version = "0.1"
+default-features = false
+features = []

@@ -4,6 +4,7 @@ use std::{collections::BTreeMap, convert::TryFrom};
 
 use indexmap::IndexMap;
 use snafu::ResultExt;
+use tracing::warn;
 
 mod line;
 
@@ -136,6 +137,17 @@ impl GroupKind {
             Self::Histogram { .. } => kind == MetricKind::Histogram,
             Self::Summary { .. } => kind == MetricKind::Summary,
             Self::Untyped { .. } => true,
+        }
+    }
+
+    // Method to return the MetricKind associated with this GroupKind
+    pub fn kind(&self) -> MetricKind {
+        match self {
+            Self::Counter { .. } => MetricKind::Counter,
+            Self::Gauge { .. } => MetricKind::Gauge,
+            Self::Histogram { .. } => MetricKind::Histogram,
+            Self::Summary { .. } => MetricKind::Summary,
+            Self::Untyped { .. } => MetricKind::Untyped,
         }
     }
 
@@ -340,7 +352,15 @@ impl MetricGroupSet {
     fn insert_metadata(&mut self, name: String, kind: MetricKind) -> Result<(), ParserError> {
         match self.0.get(&name) {
             Some(group) if !group.matches_kind(kind) => {
-                Err(ParserError::MultipleMetricKinds { name })
+                // Log a warning instead of throwing an exception
+                // since metric type is not a critical error in the ELK
+                warn!(
+                    "Metric '{}' has multiple kinds. Existing: {:?}, but found: {:?}",
+                    name,
+                    group.kind(),
+                    kind
+                );
+                Ok(()) // Return Ok even though there's a mismatch
             }
             Some(_) => Ok(()), // metadata already exists and is the right type
             None => {
